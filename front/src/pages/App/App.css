@@ -1,0 +1,13 @@
+.App {
+  text-align: center;
+}
+
+a {
+  text-decoration: inherit;
+    color: inherit;
+}
+
+.main-layout{
+  padding-top: 3vw;
+  height: calc(100vh - 16vw);
+}

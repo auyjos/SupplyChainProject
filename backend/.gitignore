@@ -1,0 +1,14 @@
+# Python
+*.pyc
+__pycache__/
+
+# Flask
+instance/
+.env
+
+# Editor/IDE specific files
+.vscode/
+*.swp
+*~
+.DS_Store
+venv
