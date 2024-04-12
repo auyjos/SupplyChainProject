@@ -1,9 +1,9 @@
-from neomodel import config, StructuredNode, StringProperty, IntegerProperty, RelationshipFrom, UniqueIdProperty
+from neomodel import config, StructuredNode, StringProperty, IntegerProperty, RelationshipFrom, UniqueIdProperty, RelationshipTo
 from uuid import uuid4
-
+from config import DATABASE_URL
 # Configuración de la conexión a Neo4j
 # Cambia esto según tu configuración
-config.DATABASE_URL = 'neo4j+s://neo4j:uPw1SolGY1Db1l65qYVPj9KN9JuFPtNxOs5SD9-r22s@27489c7e.databases.neo4j.io:7687'
+config.DATABASE_URL = DATABASE_URL
 
 # Definición de modelos de datos con Neomodel
 
@@ -17,27 +17,5 @@ class Products(StructuredNode):
     stock = IntegerProperty()
     brand = StringProperty()
     description = StringProperty()
-
-
-print(Products)  # Imprime el modelo de d
-
-
-class Supplier(StructuredNode):
-    name = StringProperty()
-    address = StringProperty()
-    phone = StringProperty()
-    country = StringProperty()
-    reputation = IntegerProperty()
-    contact = StringProperty()
-    email = StringProperty()
-    website = StringProperty()
-
-
-class TransportRoute(StructuredNode):
-    origin = StringProperty()
-    destination = StringProperty()
-    cost = IntegerProperty()
-    estimated_time = StringProperty()
-    company = StringProperty()
-
-# Ruta para obtener todos los productos
+  # Relación con las rutas de transporte a través de la relación Order_Route
+    Order_Route = RelationshipTo('Products', 'Transport Routes')
