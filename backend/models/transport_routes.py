@@ -7,7 +7,8 @@ config.DATABASE_URL = DATABASE_URL
 # Definición de modelos de datos con Neomodel
 
 
-class TransportRoute(StructuredNode):
+class Transport_Routes(StructuredNode):
+    transport_route_id = IntegerProperty()
     origin = StringProperty()
     destination = StringProperty()
     cost = IntegerProperty()

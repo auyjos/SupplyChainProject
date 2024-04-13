@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request
 from models.product_model import Products
 from models.suppliers_model import Suppliers
 from models.inventory_model import Inventory
+from models.purchase_orders_model import Purchase_Orders
+from models.transport_routes import Transport_Routes
 from datetime import datetime
 app = Flask(__name__)
 
@@ -61,7 +63,39 @@ def get_inventory_by_ID(product_id):
         return jsonify({'error': 'Inventory not found'}), 404
 
 
+@app.route('/purchase_orders', methods=['GET'])
+def get_purchase_orders():
+    purchase_order = Purchase_Orders.nodes.all()
+    return jsonify([purchase_order.__properties__ for purchase_order in purchase_order])
+
+
+@app.route('/purchase_order/<int:order_id>', methods=['GET'])
+def get_purchase_order(order_id):
+    purchase_order = Purchase_Orders.nodes.get_or_none(order_id=order_id)
+    if purchase_order:
+        return jsonify(purchase_order.__properties__)
+    else:
+        return jsonify({'error': 'Purchase Order not found'}), 404
+
+
+@app.route('/transport_routes', methods=['GET'])
+def get_transport_routes():
+    transport_routes = Transport_Routes.nodes.all()
+    return jsonify([transport_route.__properties__ for transport_route in transport_routes])
+
+
+@app.route('/transport_route/<int:transport_route_id>', methods=['GET'])
+def get_transport_route(transport_route_id):
+    transport_route = Transport_Routes.nodes.get_or_none(
+        transport_route_id=transport_route_id)
+    if transport_route:
+        return jsonify(transport_route.__properties__)
+    else:
+        return jsonify({'error': 'Transport Route not found'}), 404
+
 # POST
+
+
 @app.route('/products', methods=['POST'])
 def create_product():
     data = request.json
@@ -90,6 +124,23 @@ def create_inventory():
     inventory = Inventory(**data)
     inventory.save()
     return jsonify({'message': 'Inventory created successfully'}), 201
+
+
+@app.route('/purchase_orders', methods=['POST'])
+def create_purchase_order():
+    data = request.json
+    purchase_order = Purchase_Orders(**data)
+    purchase_order.save()
+    return jsonify({'message': 'Purchase Order created successfully'}), 201
+
+
+@app.route('/transport_routes', methods=['POST'])
+def create_transport_route():
+    data = request.json
+    transport_route = Transport_Routes(**data)
+    transport_route.save()
+    return jsonify({'message': 'Transport Route created successfully'}), 201
+
 
 # PUT
 
@@ -133,6 +184,33 @@ def update_inventory(product_id):
         return jsonify({'error': 'Inventory not found'}), 404
 
 
+@app.route('/purchase_order/<int:order_id>', methods=['PUT'])
+def update_purchase_order(order_id):
+    data = request.json
+    purchase_order = Purchase_Orders.nodes.get_or_none(order_id=order_id)
+    if purchase_order:
+        for key, value in data.items():
+            setattr(purchase_order, key, value)
+        purchase_order.save()
+        return jsonify({'message': 'Purchase Order updated successfully'})
+    else:
+        return jsonify({'error': 'Purchase Order not found'}), 404
+
+
+@app.route('/transport_route/<int:transport_route_id>', methods=['PUT'])
+def update_transport_route(transport_route_id):
+    data = request.json
+    transport_route = Transport_Routes.nodes.get_or_none(
+        transport_route_id=transport_route_id)
+    if transport_route:
+        for key, value in data.items():
+            setattr(transport_route, key, value)
+        transport_route.save()
+        return jsonify({'message': 'Transport Route updated successfully'})
+    else:
+        return jsonify({'error': 'Transport Route not found'}), 404
+
+
 # DELETE
 @app.route('/product/<int:product_id>', methods=['DELETE'])
 def delete_product(product_id):
@@ -168,6 +246,27 @@ def delete_inventory(product_id):
         return jsonify({'message': 'Inventory updated successfully'})
     else:
         return jsonify({'error': 'Inventory not found'}), 404
+
+
+@app.route('/purchase_order/<int:order_id>', methods=['DELETE'])
+def delete_purchase_order(order_id):
+    purchase_order = Purchase_Orders.nodes.get_or_none(order_id=order_id)
+    if purchase_order:
+        purchase_order.delete()
+        return jsonify({'message': 'Purchase Order deleted successfully'})
+    else:
+        return jsonify({'error': 'Purchase Order not found'}), 404
+
+
+@app.route('/transport_route/<int:transport_route_id>', methods=['DELETE'])
+def delete_transport_route(transport_route_id):
+    transport_route = Transport_Routes.nodes.get_or_none(
+        transport_route_id=transport_route_id)
+    if transport_route:
+        transport_route.delete()
+        return jsonify({'message': 'Transport Route deleted successfully'})
+    else:
+        return jsonify({'error': 'Transport Route not found'}), 404
 
 
 if __name__ == '__main__':
