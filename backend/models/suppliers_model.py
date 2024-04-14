@@ -17,6 +17,3 @@ class Suppliers(StructuredNode):
     contact = StringProperty()
     email = StringProperty()
     website = StringProperty()
-
-    # Relación de proveedor con productos (si es relevante en tu caso)
-    products = RelationshipFrom('Products', 'SUPPLIES')

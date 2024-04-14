@@ -1,4 +1,7 @@
 from neomodel import StructuredNode, StringProperty, BooleanProperty, DateProperty, IntegerProperty
+from config import DATABASE_URL
+# Configuración de la conexión a Neo4j
+config.DATABASE_URL = DATABASE_URL
 
 
 class Purchase_Orders(StructuredNode):
