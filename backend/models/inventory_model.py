@@ -11,3 +11,5 @@ class Inventory(StructuredNode):
     quantity = IntegerProperty()
     status = StringProperty()
     update_date = DateProperty()
+
+    RelationshipFrom('Purchase_Orders', 'Contains')

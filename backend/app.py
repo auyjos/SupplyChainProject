@@ -4,6 +4,7 @@ from models.suppliers_model import Suppliers
 from models.inventory_model import Inventory
 from models.purchase_orders_model import Purchase_Orders
 from models.transport_routes import Transport_Routes
+from models.Relations.contains_model import Contains
 from datetime import datetime
 app = Flask(__name__)
 
@@ -267,6 +268,8 @@ def delete_transport_route(transport_route_id):
         return jsonify({'message': 'Transport Route deleted successfully'})
     else:
         return jsonify({'error': 'Transport Route not found'}), 404
+
+    # GET: Obtener una relación Contains por su ID
 
 
 if __name__ == '__main__':
