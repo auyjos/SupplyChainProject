@@ -1,0 +1,35 @@
+/* styles.css */
+
+/* Estilos para el contenedor principal */
+.container {
+    max-width: 960px;
+    /* Ancho máximo del contenido */
+    margin: 0 auto;
+    /* Centrar el contenido en la pantalla */
+    padding: 0 20px;
+    /* Agregar espacio a los lados del contenido */
+}
+
+/* Estilos para los encabezados */
+h1 {
+    font-size: 2rem;
+    /* Tamaño de fuente grande para h1 */
+    margin-bottom: 1rem;
+    /* Espacio inferior entre encabezados y otros elementos */
+}
+
+/* Estilos para los párrafos */
+p {
+    font-size: 1rem;
+    /* Tamaño de fuente predeterminado para párrafos */
+    line-height: 1.5;
+    /* Altura de línea para mejorar la legibilidad */
+}
+
+/* Estilos para las imágenes */
+img {
+    max-width: 100%;
+    /* Imágenes responsivas que se ajustan al ancho del contenedor */
+    height: auto;
+    /* Altura automática para mantener la proporción */
+}

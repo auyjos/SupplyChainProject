@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify, request
 from models.product_model import Products
 from models.suppliers_model import Suppliers
@@ -6,10 +7,34 @@ from models.purchase_orders_model import Purchase_Orders
 from models.transport_routes import Transport_Routes
 from models.Relations.contains_model import Contains
 from datetime import datetime
-app = Flask(__name__)
+from neo4j import GraphDatabase
+from dotenv import load_dotenv
+from pathlib import Path
+from neomodel import db
+from flask_cors import CORS
+from py2neo import NodeMatcher
 
+
+load_dotenv()
+
+
+app = Flask(__name__)
+CORS(app)
+
+uri = os.getenv('NEO4J_URI')
+user = os.getenv('NEO4J_USER')
+password = os.getenv('NEO4J_PASSWORD')
+driver = GraphDatabase.driver(uri, auth=(user, password))
+
+
+def execute_cypher_query(query, parameters={}):
+    with driver.session() as session:
+        result = session.run(query, parameters)
+        return [record for record in result]
 
 # GET
+
+
 @app.route('/products', methods=['GET'])
 def get_products():
     products = Products.nodes.all()
@@ -94,10 +119,11 @@ def get_transport_route(transport_route_id):
     else:
         return jsonify({'error': 'Transport Route not found'}), 404
 
+
 # POST
 
 
-@app.route('/products', methods=['POST'])
+@app.route('/product', methods=['POST'])
 def create_product():
     data = request.json
     product = Products(**data)
@@ -142,6 +168,79 @@ def create_transport_route():
     transport_route.save()
     return jsonify({'message': 'Transport Route created successfully'}), 201
 
+
+# Creación de relaciones
+# Ruta para crear relaciones desde el frontend
+def create_relationship(from_label, from_attributes, to_label, to_attributes, relationship_label, relationship_properties):
+    # Construye la consulta para encontrar los nodos de inicio y fin
+    match_from = f"MATCH (a:{from_label} {{"
+    match_from += ", ".join(
+        [f"{key}: ${'a_' + key}" for key in from_attributes.keys()])
+    match_from += "})"
+
+    match_to = f"MATCH (b:{to_label} {{"
+    match_to += ", ".join([f"{key}: ${'b_' +
+                          key}" for key in to_attributes.keys()])
+    match_to += "})"
+
+    # Construye la consulta para crear la relacion
+    create_rel = f"CREATE (a)-[r:{relationship_label} {{"
+    if relationship_properties:
+        create_rel += ", ".join(
+            [f"{key}: ${'r_' + key}" for key in relationship_properties.keys()])
+    create_rel += "}]->(b) RETURN a, r, b"
+
+    # Combina las partes para formar la consulta Cypher completa
+    cypher_query = f"{match_from} {match_to} {create_rel}"
+
+    return cypher_query
+
+
+def exec_create_relationship(from_label, from_attributes, to_label, to_attributes, relationship_label, relationship_properties=None):
+    # Genera la consulta Cypher para crear la relación
+    query = create_relationship(from_label, from_attributes, to_label,
+                                to_attributes, relationship_label, relationship_properties)
+
+    # Prepara los parámetros para la consulta Cypher
+    parameters = {}
+    for key, value in from_attributes.items():
+        parameters[f"a_{key}"] = value
+    for key, value in to_attributes.items():
+        parameters[f"b_{key}"] = value
+    if relationship_properties:
+        for key, value in relationship_properties.items():
+            parameters[f"r_{key}"] = value
+
+    # Ejecuta la consulta dentro de una sesión de Neo4j
+    with driver.session() as session:
+        result = session.run(query, **parameters)
+        # Aquí podrías realizar alguna acción adicional con el resultado si lo deseas
+        for record in result:
+            print(record)
+
+
+@app.route('/create_relationship', methods=['POST'])
+def create_relationship_from_frontend():
+    # Obtén los datos del cuerpo de la solicitud JSON
+    data = request.json
+    from_label = data.get('from_label')
+    from_attributes = data.get('from_attributes')
+    to_label = data.get('to_label')
+    to_attributes = data.get('to_attributes')
+    relationship_label = data.get('relationship_label')
+    relationship_properties = data.get('relationship_properties')
+
+    # Verifica que se hayan proporcionado todos los datos necesarios
+    if not all([from_label, from_attributes, to_label, to_attributes, relationship_label]):
+        return jsonify({'error': 'Missing required data'}), 400
+
+    try:
+        # Ejecuta la función para crear la relación
+        exec_create_relationship(from_label, from_attributes, to_label,
+                                 to_attributes, relationship_label, relationship_properties)
+        return jsonify({'message': 'Relationship created successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # PUT
 
@@ -269,7 +368,100 @@ def delete_transport_route(transport_route_id):
     else:
         return jsonify({'error': 'Transport Route not found'}), 404
 
-    # GET: Obtener una relación Contains por su ID
+
+# Agregaciones, queries extra
+# Endpoint para obtener productos con stock bajo
+@app.route('/products/low-stock', methods=['GET'])
+def get_products_with_low_stock():
+    # Obtén el umbral de stock de la solicitud de consulta
+    stock_threshold = int(request.args.get('stock_threshold', 50))
+
+    # Realiza la consulta Cypher para obtener los productos con stock bajo
+    query = """
+    MATCH (p:Products)
+    WHERE p.stock < $stock_threshold
+    WITH p
+    RETURN p.product_id as id, p.name as name, p.stock as stock
+    ORDER BY p.stock DESC
+    """
+    result = execute_cypher_query(query, {'stock_threshold': stock_threshold})
+
+    # Formatea los resultados en un formato JSON y devuelve la respuesta
+    products = [{
+        'id': record['id'],
+        'name': record['name'],
+        'stock': record['stock']
+    } for record in result]
+    return jsonify(products), 200
+
+
+@app.route('/suppliers/high-reputation', methods=['GET'])
+def get_suppliers_with_high_reputation():
+    # Umbral de reputación alta predeterminado
+    reputation_threshold = int(request.args.get('reputation_threshold', 2))
+    query = """
+    MATCH (s:Suppliers)
+    WHERE s.reputation > $reputation_threshold
+    RETURN s.supplier_id as id, s.name as name, s.reputation as reputation
+    """
+    result = execute_cypher_query(
+        query, {'reputation_threshold': reputation_threshold})
+    suppliers = [{
+        'id': record['id'],
+        'name': record['name'],
+        'reputation': record['reputation']
+    } for record in result]
+    return jsonify(suppliers), 200
+
+
+@app.route('/products/<product_type>', methods=['GET'])
+def get_products_by_type(product_type):
+    query = """
+    MATCH (p:Products)
+    WHERE p.type = $product_type
+    RETURN p.product_id AS id, p.name AS name, p.type AS type
+    """
+    result = execute_cypher_query(query, {'product_type': product_type})
+    products = [{
+        'product_id': record['id'],
+        'name': record['name'],
+        'type': record['type']
+    } for record in result]
+    return jsonify(products), 200
+
+
+@app.route('/products/types', methods=['GET'])
+def get_product_types():
+    query = """
+    MATCH (p:Products)
+    RETURN DISTINCT p.type AS type
+    """
+    result = execute_cypher_query(query)
+    product_types = [record['type'] for record in result]
+    return jsonify(product_types), 200
+
+
+@app.route('/transport_routes/by_company', methods=['GET'])
+def get_transport_routes_by_company():
+    # Query Cypher para contar las rutas de transporte por compañía y ordenarlas de mayor a menor
+    query = """
+    MATCH (r:Transport_Routes)
+    RETURN r.company AS company, count(r) AS route_count
+    ORDER BY route_count DESC
+    LIMIT 10
+    """
+
+    # Ejecuta el query Cypher y obtiene el resultado
+    result = execute_cypher_query(query)
+
+    # Procesa los resultados y construye la respuesta JSON
+    transport_routes_by_company = [{
+        'company': record['company'],
+        'route_count': record['route_count']
+    } for record in result]
+
+    # Retorna la respuesta JSON con el código de estado 200 (OK)
+    return jsonify(transport_routes_by_company), 200
 
 
 if __name__ == '__main__':

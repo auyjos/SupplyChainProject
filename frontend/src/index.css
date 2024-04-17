@@ -1,0 +1,52 @@
+/* styles.css */
+
+/* Reset de márgenes y estilos de fuente */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Estilos adicionales para mejorar la legibilidad y apariencia */
+.container {
+  max-width: 960px;
+  /* Ancho máximo del contenido */
+  margin: 0 auto;
+  /* Centrar el contenido en la pantalla */
+  padding: 0 20px;
+  /* Agregar espacio a los lados del contenido */
+}
+
+/* Estilos para el texto del cuerpo */
+p {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Estilos para los enlaces */
+a {
+  color: #007bff;
+  /* Color azul para los enlaces */
+  text-decoration: none;
+  /* Eliminar subrayado predeterminado */
+}
+
+a:hover {
+  text-decoration: underline;
+  /* Agregar subrayado al pasar el ratón sobre el enlace */
+}
+
+/* Estilos para las etiquetas de código */
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  font-size: 14px;
+  background-color: #f7f7f7;
+  /* Color de fondo para las etiquetas de código */
+  padding: 2px 4px;
+  /* Agregar espacio alrededor del código */
+  border-radius: 4px;
+  /* Bordes redondeados */
+}
