@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Form from 'react-bootstrap/Form';
 import Button from 'react-bootstrap/Button';
-
+import NavbarComponent  from '../components/NavbarComponent'
 function CreateRelationship() {
     const [formData, setFormData] = useState({
         from_label: '',
@@ -64,6 +64,7 @@ function CreateRelationship() {
 
     return (
         <div className="container">
+         <NavbarComponent/>
             <h2>Create Relationship</h2>
             <Form onSubmit={handleSubmit}>
                 {/* Campos de formulario */}

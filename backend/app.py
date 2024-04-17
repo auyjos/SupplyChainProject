@@ -179,8 +179,7 @@ def create_relationship(from_label, from_attributes, to_label, to_attributes, re
     match_from += "})"
 
     match_to = f"MATCH (b:{to_label} {{"
-    match_to += ", ".join([f"{key}: ${'b_' +
-                          key}" for key in to_attributes.keys()])
+    match_to += ", ".join([f"{key}: ${'b_' + key}" for key in to_attributes.keys()])
     match_to += "})"
 
     # Construye la consulta para crear la relacion
