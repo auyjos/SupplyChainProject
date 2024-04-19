@@ -1,6 +1,7 @@
 from flask import jsonify
 import os
 from flask import Flask, jsonify, request
+import csv
 from models.product_model import Products
 from models.suppliers_model import Suppliers
 from models.inventory_model import Inventory
@@ -638,6 +639,67 @@ def add_labels_to_node(node_id):
             else:
                 return jsonify({'error': f'No node found with ID {node_id}'}), 404
 
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# SUbir archivo csv
+# Endpoint para subir archivos CSV a Inventory
+# Endpoint para subir archivos CSV a Inventory
+
+# Endpoint para cargar el archivo CSV en Neo4j
+
+# Función para cargar el archivo CSV en Neo4j
+def load_csv_to_inventory(file_path):
+    uri = "bolt://localhost:7687"
+    user = "neo4j"
+    password = "your_password"
+
+    # Establece la conexión con la base de datos Neo4j
+    driver = GraphDatabase.driver(uri, auth=(user, password))
+
+    with driver.session() as session:
+        # Query Cypher para cargar el archivo CSV en Neo4j
+        query = """
+        LOAD CSV WITH HEADERS FROM $file_path AS row
+        CREATE (i:Inventory {
+            inventory_id: toInteger(row.inventory_id),
+            location: row.location,
+            quantity: toInteger(row.quantity),
+            status: row.status,
+            update_date: date(row.update_date)
+        })
+        """
+        # Ejecuta el query Cypher con el parámetro file_path
+        result = session.run(query, file_path=file_path)
+        return result.summary().counters
+
+# Endpoint para cargar el archivo CSV en Neo4j
+
+
+@app.route('/upload_csv_to_inventory', methods=['POST'])
+def upload_csv_to_inventory():
+    # Obtener el archivo CSV desde la solicitud
+    csv_file = request.files['file']
+
+    # Verificar si se proporcionó un archivo CSV
+    if not csv_file:
+        return jsonify({'error': 'No CSV file provided'}), 400
+
+    # Leer el contenido del archivo CSV y cargar los datos en Neo4j
+    try:
+        with driver.session() as session:
+            query = f"""
+            LOAD CSV WITH HEADERS FROM 'file:///{csv_file.filename}' AS row
+            WITH row WHERE row.inventory_id IS NOT NULL
+            MERGE (n:Inventory {{inventory_id: toInteger(row.inventory_id)}})
+            ON CREATE SET n.location = row.location,
+                          n.quantity = toInteger(row.quantity),
+                          n.status = row.status,
+                          n.update_date = row.update_date;
+            """
+            session.run(query)
+        return jsonify({'message': 'Inventory data uploaded successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
