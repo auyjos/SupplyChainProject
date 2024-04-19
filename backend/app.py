@@ -649,33 +649,6 @@ def add_labels_to_node(node_id):
 
 # Endpoint para cargar el archivo CSV en Neo4j
 
-# Función para cargar el archivo CSV en Neo4j
-def load_csv_to_inventory(file_path):
-    uri = "bolt://localhost:7687"
-    user = "neo4j"
-    password = "your_password"
-
-    # Establece la conexión con la base de datos Neo4j
-    driver = GraphDatabase.driver(uri, auth=(user, password))
-
-    with driver.session() as session:
-        # Query Cypher para cargar el archivo CSV en Neo4j
-        query = """
-        LOAD CSV WITH HEADERS FROM $file_path AS row
-        CREATE (i:Inventory {
-            inventory_id: toInteger(row.inventory_id),
-            location: row.location,
-            quantity: toInteger(row.quantity),
-            status: row.status,
-            update_date: date(row.update_date)
-        })
-        """
-        # Ejecuta el query Cypher con el parámetro file_path
-        result = session.run(query, file_path=file_path)
-        return result.summary().counters
-
-# Endpoint para cargar el archivo CSV en Neo4j
-
 
 @app.route('/upload_csv_to_inventory', methods=['POST'])
 def upload_csv_to_inventory():
