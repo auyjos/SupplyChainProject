@@ -1,3 +1,4 @@
+from flask import jsonify
 import os
 from flask import Flask, jsonify, request
 from models.product_model import Products
@@ -5,7 +6,6 @@ from models.suppliers_model import Suppliers
 from models.inventory_model import Inventory
 from models.purchase_orders_model import Purchase_Orders
 from models.transport_routes import Transport_Routes
-from models.Relations.contains_model import Contains
 from datetime import datetime
 from neo4j import GraphDatabase
 from dotenv import load_dotenv
@@ -179,7 +179,8 @@ def create_relationship(from_label, from_attributes, to_label, to_attributes, re
     match_from += "})"
 
     match_to = f"MATCH (b:{to_label} {{"
-    match_to += ", ".join([f"{key}: ${'b_' + key}" for key in to_attributes.keys()])
+    match_to += ", ".join([f"{key}: ${'b_' +
+                          key}" for key in to_attributes.keys()])
     match_to += "})"
 
     # Construye la consulta para crear la relacion
@@ -368,8 +369,76 @@ def delete_transport_route(transport_route_id):
         return jsonify({'error': 'Transport Route not found'}), 404
 
 
+@app.route('/delete_nodes/<string:node_label>/<int:num_nodes>', methods=['DELETE'])
+def delete_nodes_by_label(node_label, num_nodes):
+    try:
+        # Construir y ejecutar la consulta Cypher para eliminar los nodos
+        delete_query = f"MATCH (n:{node_label}) WITH n LIMIT {
+            num_nodes} DETACH DELETE n"
+        count_query = f"MATCH (n:{node_label}) RETURN count(n) AS count"
+
+        with driver.session() as session:
+            session.run(delete_query)
+            result = session.run(count_query)
+            count = result.single()['count']
+
+        return jsonify({'message': f'{num_nodes} nodes of label "{node_label}" deleted successfully', 'remaining_count': count}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/delete_relationship/<string:rel_type>/<int:rel_id>', methods=['DELETE'])
+def delete_relationship(rel_type, rel_id):
+    try:
+        # Construir y ejecutar la consulta Cypher para eliminar la relación por su ID y tipo
+        delete_query = f"MATCH ()-[r:{rel_type}]-() WHERE ID(r) = $rel_id DELETE r"
+
+        with driver.session() as session:
+            result = session.run(delete_query, rel_id=rel_id)
+
+            # Obtener el contador de relaciones eliminadas desde el objeto ResultSummary
+            relationships_deleted = result.consume().counters.relationships_deleted
+
+            # Verificar si la relación fue eliminada correctamente
+            if relationships_deleted > 0:
+                return jsonify({'message': f'Relationship with ID {rel_id} and type "{rel_type}" deleted successfully'}), 200
+            else:
+                return jsonify({'error': f'Relationship with ID {rel_id} and type "{rel_type}" not found'}), 404
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/delete_relationships/<string:rel_type>', methods=['DELETE'])
+def delete_multiple_relationships(rel_type):
+    try:
+        # Obtener el número máximo de relaciones a eliminar (opcional)
+        max_relationships = int(request.args.get('max', 2))
+
+        # Construir y ejecutar la consulta Cypher para eliminar las relaciones
+        delete_query = f"MATCH ()-[r:{rel_type}]-() WITH r LIMIT {
+            max_relationships} DELETE r"
+        with driver.session() as session:
+            result = session.run(delete_query)
+
+        # Obtener el número real de relaciones eliminadas del resultado de la consulta
+        deleted_count = result.consume().counters.relationships_deleted
+
+        # Verificar si se eliminaron algunas relaciones y devolver un mensaje apropiado
+        if deleted_count > 0:
+            return jsonify({'message': f'{deleted_count} relationships of type "{rel_type}" deleted successfully'}), 200
+        else:
+            return jsonify({'error': f'No relationships of type "{rel_type}" found'}), 404
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # Agregaciones, queries extra
 # Endpoint para obtener productos con stock bajo
+
+
 @app.route('/products/low-stock', methods=['GET'])
 def get_products_with_low_stock():
     # Obtén el umbral de stock de la solicitud de consulta
@@ -461,6 +530,116 @@ def get_transport_routes_by_company():
 
     # Retorna la respuesta JSON con el código de estado 200 (OK)
     return jsonify(transport_routes_by_company), 200
+
+
+@app.route('/products/<int:product_id>/delete_labels/<string:labels>', methods=['DELETE'])
+def delete_product_labels(product_id, labels):
+    try:
+        # Divide los nombres de las etiquetas por comas para obtener una lista
+        labels_to_delete = labels.split(',')
+
+        # Abre una sesión de Neo4j
+        with driver.session() as session:
+            # Construye y ejecuta la consulta Cypher para eliminar etiquetas del nodo
+            query = (
+                "MATCH (p:Products {product_id: $product_id}) "
+                "REMOVE p:" + ':'.join(labels_to_delete)
+            )
+            result = session.run(query, product_id=product_id)
+
+            # Verifica si se encontraron y eliminaron las etiquetas
+            if result.consume().counters.labels_removed > 0:
+                return jsonify({'message': f'Labels {", ".join(labels_to_delete)} removed from Product with product_id {product_id} successfully'}), 200
+            else:
+                return jsonify({'error': f'No labels found for removal on Product with product_id {product_id}'}), 404
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/remove_labels', methods=['PUT'])
+def remove_labels():
+    try:
+        # Parsea los labels de la solicitud
+        labels = request.json.get('labels', [])
+
+        # Verifica si se proporcionaron labels
+        if not labels:
+            return jsonify({'error': 'No labels provided'}), 400
+
+        # Ejecuta la consulta Cypher
+        with driver.session() as session:
+            result = session.run(
+                "MATCH (n) "
+                "REMOVE n:" + ':'.join(labels)
+            )
+
+            # Verifica si se realizaron cambios en los nodos
+            if result.consume().counters.labels_removed > 0:
+                return jsonify({'message': f'Labels {", ".join(labels)} removed from all nodes successfully'}), 200
+            else:
+                return jsonify({'error': f'No labels found for removal on any node'}), 404
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/remove_labels/<int:node_id>', methods=['PUT'])
+def remove_labels_id(node_id):
+    try:
+        # Parsea los labels de la solicitud
+        labels = request.json.get('labels', [])
+
+        # Verifica si se proporcionaron labels
+        if not labels:
+            return jsonify({'error': 'No labels provided'}), 400
+
+        # Ejecuta la consulta Cypher
+        with driver.session() as session:
+            result = session.run(
+                "MATCH (n) "
+                "WHERE ID(n) = $node_id "
+                "REMOVE n:" + ':'.join(labels),
+                node_id=node_id
+            )
+
+            # Verifica si se realizaron cambios en el nodo
+            if result.consume().counters.labels_removed > 0:
+                return jsonify({'message': f'Labels {", ".join(labels)} removed from node {node_id} successfully'}), 200
+            else:
+                return jsonify({'error': f'No labels found for removal on node {node_id}'}), 404
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/nodes/<int:node_id>/labels', methods=['PUT'])
+def add_labels_to_node(node_id):
+    try:
+        # Parsea los labels de la solicitud
+        labels = request.json.get('labels', [])
+
+        # Verifica si se proporcionaron labels
+        if not labels:
+            return jsonify({'error': 'No labels provided'}), 400
+
+        # Ejecuta la consulta Cypher
+        with driver.session() as session:
+            result = session.run(
+                "MATCH (n) "
+                "WHERE id(n) = $node_id "
+                "SET n:" + ':'.join(labels),
+                node_id=node_id
+            )
+
+            # Verifica si se realizaron cambios en el nodo
+            if result.consume().counters.labels_set > 0:
+                return jsonify({'message': f'Labels {", ".join(labels)} added to node with ID {node_id} successfully'}), 200
+            else:
+                return jsonify({'error': f'No node found with ID {node_id}'}), 404
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
